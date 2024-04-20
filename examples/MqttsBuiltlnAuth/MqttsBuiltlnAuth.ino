@@ -27,11 +27,11 @@ TinyGsm modem(SerialAT);
 
 
 // MQTT details 
-const char *broker = "test.mosquitto.org";
-const uint16_t broker_port = 8885;
-const char *broker_username = "rw";
-const char *broker_password = "readwrite";
-const char *clien_id = "A76XX";
+const char *broker = "wakafsumur.salamsetara.com";
+const uint16_t broker_port = 1883;
+const char *broker_username = "wakafsumur";
+const char *broker_password = "wakafsumur!@#$";
+const char *clien_id = "AquaFlow-A7670G-01";
 
 const char *subscribe_topic = "GsmMqttTest/subscribe";
 const char *publish_topic = "GsmMqttTest/publish";

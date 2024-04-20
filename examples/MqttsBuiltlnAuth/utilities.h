@@ -15,7 +15,7 @@
 // 使用ArduinoIDE ,必须选择一个对应的板型 ,如果你不知道你的板型是哪种，请点击链接进行查看
 
 // Products Link:https://www.lilygo.cc/products/t-sim-a7670e
-// #define LILYGO_T_A7670
+#define LILYGO_T_A7670
 
 
 // T-Call-A767X V1.0 and V1.1 have different Pinmaps and cannot be used universally.
