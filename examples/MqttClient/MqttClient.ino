@@ -22,13 +22,13 @@
 #define GSM_PIN ""
 
 // Kredensial GPRS
-const char apn[]      = "internet";
-const char gprsUser[] = "";
-const char gprsPass[] = "";
+const char apn[]      = "Unlimited";
+const char gprsUser[] = "3gprs";
+const char gprsPass[] = "3gprs";
 
 // Kredensial WiFi
-const char wifiSSID[] = "YourSSID";
-const char wifiPass[] = "YourWiFiPass";
+const char wifiSSID[] = "Nannafa";
+const char wifiPass[] = "Adibanayya203";
 
 // Konfigurasi MQTT
 const char *broker = "wakafsumur.salamsetara.com";
