@@ -6,7 +6,7 @@
 #define SerialAT Serial1
 
 // Opsi Debugging
-// #define DUMP_AT_COMMANDS
+#define DUMP_AT_COMMANDS
 
 // Debugging Serial
 #define TINY_GSM_DEBUG SerialMon
@@ -50,6 +50,8 @@ long lastMsg = 0;
 #include <TinyGsmClient.h>
 #include <PubSubClient.h>
 #include <Ticker.h>
+#include <TimeLib.h> // Tambahkan pustaka TimeLib
+
 
 // Validasi Konfigurasi
 #if TINY_GSM_USE_GPRS && not defined TINY_GSM_MODEM_HAS_GPRS
@@ -79,6 +81,9 @@ PubSubClient  mqtt(client);
 int ledStatus = LOW;
 uint32_t lastReconnectAttempt = 0;
 
+char clientId[20]; // Variabel untuk menyimpan ID klien MQTT yang unik
+char chipIdBuffer[17];
+
 void mqttCallback(char *topic, byte *payload, unsigned int len) {
     SerialMon.print("Pesan tiba [");
     SerialMon.print(topic);
@@ -98,7 +103,9 @@ boolean mqttConnect() {
     SerialMon.print("Menghubungkan ke ");
     SerialMon.print(broker);
 
-    boolean status = mqtt.connect("GsmClientName", "wakafsumur", "wakafsumur!@#$");
+    boolean status = mqtt.connect(chipIdBuffer, "wakafsumur", "wakafsumur!@#$");
+
+    //   boolean status = mqtt.connect(chipIdBuffer);
 
     if (!status) {
         SerialMon.println(" gagal");
@@ -112,6 +119,13 @@ boolean mqttConnect() {
 
 void setup() {
     Serial.begin(115200);
+
+    // Turn on DC boost to power on the modem
+    #ifdef BOARD_POWERON_PIN
+    pinMode(BOARD_POWERON_PIN, OUTPUT);
+    digitalWrite(BOARD_POWERON_PIN, HIGH);
+#endif
+
     // Konfigurasi Modem
     pinMode(MODEM_RESET_PIN, OUTPUT);
     digitalWrite(MODEM_RESET_PIN, !MODEM_RESET_LEVEL); delay(100);
@@ -140,6 +154,13 @@ void setup() {
             return;
         }
     }
+
+     // Setel zona waktu lokal ke Jakarta
+  setenv("TZ", "WIB-7", 1);
+  configTime(7 * 3600, 0, "pool.ntp.org"); // Sinkronkan waktu dengan NTP server
+  
+  uint64_t chipId = ESP.getEfuseMac();
+  snprintf(chipIdBuffer, sizeof(chipIdBuffer), "%016llX", chipId);
 
     mqtt.setServer(broker, 1883);
     mqtt.setCallback(mqttCallback);
@@ -192,30 +213,35 @@ void calculateFlowRate() {
 }
 
 void publishSensorData() {
-    unsigned long now = millis();
-    if (now - lastMsg >= interval2) {
-        lastMsg = now;
+  unsigned long now = millis();
+  if (now - lastMsg >= interval2) {
+    lastMsg = now;
 
-        uint64_t chipId = ESP.getEfuseMac();
-        char chipIdBuffer[17];
-        snprintf(chipIdBuffer, sizeof(chipIdBuffer), "%016llX", chipId);
+    // Mendapatkan waktu saat ini
+    time_t currentTime = time(nullptr);
+    struct tm *localTime = localtime(&currentTime);
 
-        Serial.println("ID Device:");
-        Serial.println(chipIdBuffer);
-        mqtt.publish("sensor/aquaFlow/idDevice", chipIdBuffer);
+    // Membuat timestamp
+    String timestamp = String(localTime->tm_year + 1900) + "-" +
+                       String(localTime->tm_mon + 1) + "-" +
+                       String(localTime->tm_mday) + " " +
+                       String(localTime->tm_hour) + ":" +
+                       String(localTime->tm_min) + ":" +
+                       String(localTime->tm_sec);
 
-        char flowRateString[8];
-        dtostrf(flowRate, 1, 2, flowRateString);
-        Serial.println("flowRate:");
-        Serial.println(flowRate);
-        mqtt.publish("sensor/aquaFlow/flowRate", flowRateString);
 
-        char totalVolumeString[8];
-        dtostrf(totalVolume, 1, 2, totalVolumeString);
-        Serial.println("totalVolume:");
-        Serial.println(totalVolume);
-        mqtt.publish("sensor/aquaFlow/totalVolume", totalVolumeString);
+    Serial.println("ID Device:");
+    Serial.println(chipIdBuffer);
 
-        totalVolume = 0.0;
-    }
+    char messageBuffer[150]; // Buffer pesan untuk menyimpan semua data sensor dan timestamp
+    snprintf(messageBuffer, sizeof(messageBuffer), "{\"idDevice\":\"%s\",\"timestamp\":\"%s\",\"flowRate\":%.2f,\"totalVolume\":%.2f}",
+             chipIdBuffer, timestamp.c_str(), flowRate, totalVolume);
+
+    Serial.println("Sensor Data:");
+    Serial.println(messageBuffer);
+
+    mqtt.publish("sensor/aquaFlow", messageBuffer); // Mengirimkan semua data sensor dalam satu topik
+
+    totalVolume = 0.0;
+  }
 }
